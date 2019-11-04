@@ -8,24 +8,25 @@ from itertools import groupby
 headers = ['Border', 'Date', 'Measure', 'Value', 'Average']
 line_count = 0
 borders_list = []
+#create one dictionary for every needed information to store the values
 border_value = {}
 border_border = {}
 border_date = {}
 border_date_string = {}
 border_measure = {}
-data = []
-unique_borders = set()
+data = [] #to store all dictionaries grouped by border, measure, and date
+unique_borders = set() #to keep only unique border-measure elements
 dict_bor_and_meas = {}
 dict_bor_and_values = {}
 
-with open('/Users/leongutierrez/Documents/border-crossing-analysis-master/input/Border_Crossing_Entry_data.csv') as file:
+with open('/users/leongutierrez/Documents/python/border-crossing-analysis-master/input/Border_Crossing_Entry_data.csv') as file:
 	csv_file = csv.reader(file, delimiter = ',')
 	for row in csv_file:
 		if line_count == 0: #to skip header
 			line_count += 1
 			pass
 		else:
-			new_item = row[3] + "-" + str(row[4]) + "-" + row[5]
+			new_item = row[3] + "-" + str(row[4]) + "-" + row[5] #this is going to be the key for the dictionaries, to aggregate values by border-measure-date
 			if new_item not in borders_list:
 				border_value[new_item] = int(row[6])
 				border_border[new_item] = row[3]
@@ -48,17 +49,18 @@ with open('/Users/leongutierrez/Documents/border-crossing-analysis-master/input/
 			else:
 				border_value[new_item] += int(row[6])
 
-#get the values for every set of border-measure, excluding the most current date
+#create lists of the values of dictionaries to be able to iterate through them
 border = list(border_border.values())
 date = list(border_date.values())
 date_string = list(border_date_string.values())
 date_string = list(border_date_string.values())
 measure = list(border_measure.values())
 value = list(border_value.values())
-new_value = {}
+new_value = {} #in this dictionary I'm going to store the values of all borde
 
 #print(border[1])
 #print(value[1])
+#get the values for every set of border-measure, excluding the most current date
 for i in range(len(border_value.keys())):
 	new_border = border[i] + "-" + measure[i]
 
@@ -76,6 +78,7 @@ for k, v in new_value.items():
 
 #print(avgDict)
 
+#assign their respective averages to dictionaries with most current date, and 0 to the others.
 border_average = border_value.copy()
 border_average_keys = list(border_value.keys())
 for i in range(len(border_value.keys())):
@@ -100,7 +103,7 @@ for i in range(len(border_value.keys())):
 #			newDict[key] = value
 #	return newDict
 
-
+#create a dictionary for every border-measure-date entry, and append them to the data list.
 average = list(border_average.values())
 for i in range(len(border_value.keys())):
 	new_border = {}
@@ -117,8 +120,9 @@ for i in range(len(border_value.keys())):
 #Sort data dictionary
 data.sort(key = itemgetter('Date', 'Value', 'Measure', 'Border'), reverse = True)
 
-#for i in data:
-#	i['Date'] = i['Date'].strftime('%m/%d/%Y, %I:%M%:%S %p')
+#change format of data entries
+for i in data:
+	i['Date'] = i['Date'].strftime('%m/%d/%Y %I:%M%:%S %p')
 
 #print(data[1:5])
 
