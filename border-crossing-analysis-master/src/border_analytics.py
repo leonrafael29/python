@@ -1,169 +1,113 @@
 import csv
 import datetime
+import math
 from operator import itemgetter
-from itertools import groupby
+
 
 
 #Load Border_Crossing_Entry_Data
-headers = ['Border', 'Date', 'Measure', 'Value', 'Average']
 line_count = 0
-borders_list = []
-#create one dictionary for every needed information to store the values
-border_value = {}
-border_border = {}
-border_date = {}
-border_date_string = {}
-border_measure = {}
-data = [] #to store all dictionaries grouped by border, measure, and date
-unique_borders = set() #to keep only unique border-measure elements
-dict_bor_and_meas = {}
-dict_bor_and_values = {}
+ 
+borders_set = set() #Use this set to store borders
+borders_measure_set = set() #Use this set to store border-measure pairs
+border = {}
+border_me = {} #to store the dates and values of pairs border-measure to find average
+dates = set()
 
-with open('/users/leongutierrez/Documents/python/border-crossing-analysis-master/input/Border_Crossing_Entry_data.csv') as file:
+with open('./input/Border_Crossing_Entry_data.csv') as file:
 	csv_file = csv.reader(file, delimiter = ',')
 	for row in csv_file:
 		if line_count == 0: #to skip header
 			line_count += 1
 			pass
 		else:
-			new_item = row[3] + "-" + str(row[4]) + "-" + row[5] #this is going to be the key for the dictionaries, to aggregate values by border-measure-date
-			if new_item not in borders_list:
-				border_value[new_item] = int(row[6])
-				border_border[new_item] = row[3]
-				border_date[new_item] = datetime.datetime.strptime(row[4], '%m/%d/%Y %I:%M:%S %p')
-				border_date_string[new_item] = row[4]
-				border_measure[new_item] = row[5]
-
-
-				# find the most current date for every unique border-measure 
-				border_and_measure = row[3] + "-" + row[5]
-				max_date = datetime.datetime.strptime(row[4], '%m/%d/%Y %I:%M:%S %p')
-				
-				if border_and_measure in unique_borders:
-					if max_date > dict_bor_and_meas[border_and_measure]:
-						dict_bor_and_meas[border_and_measure] = max_date		
-				else:
-					dict_bor_and_meas[border_and_measure] = max_date
-					unique_borders.add(border_and_measure)
+			border_measure_date= row[3] + "_" + row[5] + "_" + row[4]
+			border_measure = row[3] + "_" + row[5]
+			if border_measure_date in borders_set:
+				border[border_measure_date]['Value'] += int(row[6])
+ 
 
 			else:
-				border_value[new_item] += int(row[6])
+				border[border_measure_date] = {}
+				border[border_measure_date]['Border'] = row[3]
+				border[border_measure_date]['Date'] = datetime.datetime.strptime(row[4], '%m/%d/%Y %I:%M:%S %p')
+				border[border_measure_date]['Measure'] = row[5]
+				border[border_measure_date]['Value'] = int(row[6])
 
-#create lists of the values of dictionaries to be able to iterate through them
-border = list(border_border.values())
-date = list(border_date.values())
-date_string = list(border_date_string.values())
-date_string = list(border_date_string.values())
-measure = list(border_measure.values())
-value = list(border_value.values())
-new_value = {} #in this dictionary I'm going to store the values of all borde
+				borders_set.add(border_measure_date)
 
-#print(border[1])
-#print(value[1])
-#get the values for every set of border-measure, excluding the most current date
-for i in range(len(border_value.keys())):
-	new_border = border[i] + "-" + measure[i]
+			if border_measure in border_me:
+				if row[4] in border_me[border_measure]:
+					border_me[border_measure][row[4]] += int(row[6]) 
+				else:
+					border_me[border_measure][row[4]] = int(row[6]) #the border-measure pair is in the dicitionary, but the date is not
 
-	if date[i] != dict_bor_and_meas[new_border]:
-		new_value.setdefault(new_border,[]).append(value[i])
+			else:
+				border_me[border_measure] = {}
+				border_me[border_measure][row[4]] = int(row[6])
 
-#print(new_value)	
-#print(new_value.keys())
+			
+#print(border_me['US-Canada Border_Buses']['06/01/2019 12:00:00 AM'])
+#print(border_me)			
 
-
-#find the average for every border-measure
-avgDict = {}
-for k, v in new_value.items():
-	avgDict[k] = round(sum(v)/ len(v))
-
-#print(avgDict)
-
-#assign their respective averages to dictionaries with most current date, and 0 to the others.
-border_average = border_value.copy()
-border_average_keys = list(border_value.keys())
-for i in range(len(border_value.keys())):
-	new_border = border[i] + "-" + measure[i]
-
-	if date[i] != dict_bor_and_meas[new_border]:
-		border_average[border_average_keys[i]] = 0
-	else:
-		border_average[border_average_keys[i]] = avgDict[new_border]
-
-#print(border_average)
-#Join all dictionaries into one
-#data['Border'] = list(border_border.values())
-#data['Date'] = list(border_date.values())
-#data['Measure'] = list(border_measure.values())
-#data['Value'] = list(border_value.values())
-
-#def filterDict(dictObj, callback):
-#	newDict = dict()
-#	for (key, value) in dictObj.items():
-#		if callback((key, value)):
-#			newDict[key] = value
-#	return newDict
-
-#create a dictionary for every border-measure-date entry, and append them to the data list.
-average = list(border_average.values())
-for i in range(len(border_value.keys())):
-	new_border = {}
-	new_border['Border'] = border[i]
-	new_border['Date'] = date[i]
-	new_border['Measure'] = measure[i]
-	new_border['Value'] = value[i]
-	new_border['Average'] = average[i]
-	data.append(new_border)
+#Find the average for every border-measure pair
 
 
+border_measure_average = {}
+for measure in border_me.keys():
+	for date in border_me[measure].keys():
+		sum_values = 0
+		count = 0
+		for i in border_me[measure].keys():
+			if datetime.datetime.strptime(date, '%m/%d/%Y %I:%M:%S %p') > datetime.datetime.strptime(i, '%m/%d/%Y %I:%M:%S %p'):
+				sum_values += border_me[measure][i]
+				count += 1
+		if count == 0:
+			average = 0
+		else:
+			average = math.ceil(sum_values / count)
+		border_measure_average[measure + "_" + date] = average
 
+#print(border_measure_average)
 
-#Sort data dictionary
-data.sort(key = itemgetter('Date', 'Value', 'Measure', 'Border'), reverse = True)
+#Add the average to the border dictionary
+for i in border:
+	border[i]['Average'] = border_measure_average[i]
 
-#change format of data entries
-for i in data:
-	i['Date'] = i['Date'].strftime('%m/%d/%Y %I:%M%:%S %p')
+#rint(border)
 
-#print(data[1:5])
+#list of borders
+border_list = [border[x] for x in border.keys()]
 
-#Save the data dictionary as a csv file.
-with open('./output/report.csv', 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers)
-        writer.writeheader()
-        for data in data:
-            writer.writerow(data)
+#sort the list of borders by Date, Border, Measure, and Value
+sorted_borders = sorted(border_list, key = itemgetter('Date', 'Value', 'Measure', 'Border'), reverse = True)
 
+#Change the format of the dates
+for i in sorted_borders:
+	i['Date'] = datetime.datetime.strftime(i['Date'], '%m/%d/%Y %I:%M:%S %p') 
 
-#Calculate average of every Border and Measure
-#for border, measure, items in groupby(data, key= itemgetter('Border', 'Measure')):
-#	print(border)
-#	print(measure)
-#	for i in items:
-#		print(' ', i)
+print(border_list)
 
-
-
-
-
-				#elif i['Border'] == row[3] & i['Date'] == row[4] & i['Measure'] == row[5]:
-				#	i['Value'] += float(row[6])
-#
-#				elif i['Border'] == row[3] & i['Date'] != row[4] & i['Measure'] == row[5]:
-#					border['Border'] = row[3]
-#					border['Date'] = row[4]
-#					border['Measure'] = row[5]
-#					border['Value'] = float(row[6])
-#					data.append(border)
-#
-#				elif i['Border'] == row[3] & i['Date'] == row[4] & i['Measure'] != row[5]:
-#					border['Border'] = row[3]
-#					border['Date'] = row[4]
-#					border['Measure'] = row[5]
-#					border['Value'] = float(row[6])
-#					data.append(border)
+#save border_list to a csv file
+csv_columns = ['Border', 'Date', 'Measure', 'Value', 'Average']
+with open("./output/report.csv", 'w') as csvfile:
+	writer = csv.DictWriter(csvfile, fieldnames = csv_columns)
+	writer.writeheader()
+	for border in sorted_borders:
+		writer.writerow(border)
 
 
 
 
 
 
+
+
+
+			#border_mean[row[3] + "_" + row[5]].append(row[6])
+
+
+
+	
+			
+			
